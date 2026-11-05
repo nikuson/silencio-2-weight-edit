@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silencio-2 Weight Edit</title>
+<meta name="description" content="Fixing weak emotion tags in a tiny TTS model by editing attention weights directly, with no retraining. Before/after audio on a held-out test set.">
+<meta property="og:title" content="Silencio-2: fixing emotion tags by editing the weights">
+<meta property="og:description" content="Whisper tag 5/24 → 22/24, emotion separability 0.45 → 0.71, untagged speech unchanged. No gradient steps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f3ee; --surface:#fffdf9; --ink:#1d1a16; --muted:#6c655c; --line:#e3ddd3;
+  --accent:#c2410c; --accent-soft:#fde8dc; --good:#15803d; --good-soft:#dcf2e3; --code:#f0ebe3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141210; --surface:#1c1916; --ink:#f1ebe2; --muted:#a39a8e; --line:#2f2a25;
+    --accent:#fb923c; --accent-soft:#3a2416; --good:#4ade80; --good-soft:#163222; --code:#26221e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141210; --surface:#1c1916; --ink:#f1ebe2; --muted:#a39a8e; --line:#2f2a25;
+  --accent:#fb923c; --accent-soft:#3a2416; --good:#4ade80; --good-soft:#163222; --code:#26221e;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+a{color:var(--accent)}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.88em}
+code{background:var(--code);padding:.1em .35em;border-radius:4px}
+h1,h2{font-family:Fraunces,Georgia,serif;font-weight:650;letter-spacing:-.01em;line-height:1.15}
+h1{font-size:clamp(2rem,5.5vw,3.2rem);margin:.2em 0 .35em}
+h2{font-size:1.65rem;margin:2.6em 0 .6em}
+h3{font-size:1rem;margin:1.6em 0 .4em}
+p{margin:.6em 0}
+.muted{color:var(--muted)}
+header{padding:56px 0 8px}
+.kicker{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:1.15rem;max-width:42em}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}
+.links a{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);text-decoration:none;font-size:.92rem}
+.links a:hover{border-color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:34px 0 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat .v{font-family:Fraunces,Georgia,serif;font-size:1.7rem;font-weight:650;line-height:1.1}
+.stat .v s{color:var(--muted);font-weight:500;text-decoration:none;font-size:.75em}
+.stat .v b{color:var(--good)}
+.stat .l{font-size:.85rem;color:var(--muted);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+.prompt{font-size:1rem;margin:0 0 10px}
+.tag{font-family:"JetBrains Mono",monospace;font-size:.85em;color:var(--accent);background:var(--accent-soft);padding:.1em .4em;border-radius:4px}
+.meta{font-size:.8rem;color:var(--muted)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.pair{grid-template-columns:1fr}}
+.player{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg)}
+.player.edit{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+.player button{flex:none;width:34px;height:34px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);cursor:pointer;display:grid;place-items:center}
+.player.edit button{background:var(--good);color:var(--surface)}
+.player button svg{width:14px;height:14px}
+.player .lab{font-size:.85rem;font-weight:600;min-width:0}
+.player .lab span{display:block;font-weight:400;color:var(--muted);font-size:.76rem}
+.bar{flex:1;height:4px;background:var(--line);border-radius:2px;overflow:hidden;cursor:pointer;min-width:40px}
+.bar i{display:block;height:100%;width:0;background:currentColor}
+.player .bar{color:var(--ink)} .player.edit .bar{color:var(--good)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:12px}
+.grid2 .card{margin:0}
+table{width:100%;border-collapse:collapse;font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+td.n{font-family:"JetBrains Mono",monospace;font-size:.88rem;white-space:nowrap}
+td.up{color:var(--good);font-weight:600}
+tr:last-child td{border-bottom:0}
+.tablewrap{overflow-x:auto}
+ol.steps{padding-left:1.2em} ol.steps li{margin:.7em 0}
+.formula{font-family:"JetBrains Mono",monospace;font-size:1.05rem;background:var(--code);border-radius:10px;padding:14px 16px;margin:12px 0;overflow-x:auto}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.controls label{font-size:.8rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+select{font:inherit;font-size:.92rem;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:700px){.trio{grid-template-columns:1fr}}
+ul.plain{padding-left:1.1em} ul.plain li{margin:.45em 0}
+pre{background:var(--code);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font-size:.88rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Silencio-2 · weight-space edit</div>
+  <h1>Fixing emotion tags by editing the weights, not retraining</h1>
+  <p class="lede">Silencio-2 is a tiny English TTS (18M generation parameters) with inline emotion and sound tags. It was trained on too little tagged data, so most emotion tags were unreliable. Reading the weights showed why, and a rank-1 edit per layer fixed most of it, with zero gradient steps.</p>
+  <div class="links">
+    <a href="#listen">▶ Listen</a>
+    <a href="#explore">All 168 test takes</a>
+    <a href="https://huggingface.co/BlueRoseLabs/Silencio-2">Model on Hugging Face</a>
+    <a href="https://rikiyat.github.io/blog/weight-space-programming/">Method: weight-space programming</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="v"><s>5/24 →</s> <b>22/24</b></div><div class="l"><code>&lt;whisper&gt;</code> takes that actually whisper</div></div>
+    <div class="stat"><div class="v"><s>0.45 →</s> <b>0.71</b></div><div class="l">emotion separability, 7 classes (chance 0.14)</div></div>
+    <div class="stat"><div class="v"><s>0.006 →</s> 0.006</div><div class="l">WER on untagged speech</div></div>
+    <div class="stat"><div class="v">0</div><div class="l">gradient steps, about 5k free parameters</div></div>
+  </div>
+</header>
+
+<section id="listen">
+  <h2>Listen</h2>
+  <p class="muted">All clips come from the held-out test set: lines, seeds and two of the three voices were never used while building the edit. Same text, same voice, same seed, only the weights differ. The examples below follow a fixed rule (seed 11, first lines), they are not cherry-picked. Every take is in the <a href="#explore">explorer</a>.</p>
+
+  <h3><span class="tag">&lt;whisper&gt;</span> the biggest change</h3>
+  <div id="feat-whisper"></div>
+
+  <h3>Other emotions</h3>
+  <div class="grid2" id="feat-emo"></div>
+</section>
+
+<section>
+  <h2>What was wrong</h2>
+  <ol class="steps">
+    <li><strong>The tag embeddings barely moved.</strong> Each tag row was initialized from a word (<code>&lt;sad&gt;</code> from "sad", <code>&lt;whisper&gt;</code> from "whisper") and still has 60–80% cosine similarity to it. Making the rows longer would not help: a LayerNorm sits before attention, so only the direction counts.</li>
+    <li><strong>The audio does not read the tags.</strong> An attention probe showed that audio frames attend to <code>&lt;happy&gt;</code> 100–3000× more than to an average word. For the other tags it is only 1–10×.</li>
+    <li><strong>The information is already there.</strong> Boosting attention to <code>&lt;whisper&gt;</code> directly in the activations (×30, all heads) produced a whisper in 62% of takes with clean words. ×100 broke speech. Boosting only the three heads that read tags the most did almost nothing.</li>
+  </ol>
+
+  <h2>The edit</h2>
+  <p>Each of the 8 layers gets one rank-1 term added to its key projection:</p>
+  <div class="formula">W<sub>K</sub> ← W<sub>K</sub> + D · ( Σ<sub>t</sub> ln g<sub>t</sub> · z<sub>t</sub> )<sup>ᵀ</sup></div>
+  <ul class="plain">
+    <li><strong>z<sub>t</sub></strong> is a linear detector for tag <i>t</i>, fit by least squares on the layer's input: 1.00 on the tag token, 0 ± 0.03 everywhere else.</li>
+    <li><strong>D</strong> shifts the key in the slowest RoPE pairs, which barely rotate, along the mean query of the audio frames. So it raises the tag's attention score by about ln g<sub>t</sub> wherever the tag sits in the text.</li>
+    <li><strong>Gains g<sub>t</sub>:</strong> sad, fear, surprised ×5; angry ×3; whisper ×10. <code>&lt;happy&gt;</code> and the sound tags are left untouched.</li>
+  </ul>
+  <p>That changes 524k weights (3.4% of the transformer, all inside <code>in_proj</code>), but the edit has only about 5k free parameters. Every variant was tried on a dev split and kept only if it improved. The final one was checked once on the test split.</p>
+
+  <h2>Results</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Held-out test, 168 emotion takes</th><th>Release</th><th>Edit</th></tr>
+    <tr><td><code>&lt;whisper&gt;</code> actually whispers</td><td class="n">5/24</td><td class="n up">22/24</td></tr>
+    <tr><td>…and the words are clean</td><td class="n">5/24</td><td class="n up">10/24</td></tr>
+    <tr><td>Emotion separability, 7 classes</td><td class="n">0.446</td><td class="n up">0.714</td></tr>
+    <tr><td>Consistency: sad / angry / fear / surprised / whisper</td><td class="n">.08 / .05 / .07 / .06 / .09</td><td class="n up">.13 / .10 / .15 / .19 / .27</td></tr>
+    <tr><td>WER, untagged speech</td><td class="n">0.006</td><td class="n">0.006</td></tr>
+    <tr><td>WER, emotion takes (mostly whisper)</td><td class="n">0.002</td><td class="n">0.064</td></tr>
+    <tr><td>Sound tags: WER around them / sound length</td><td class="n">0.007 / 0.81 s</td><td class="n">0.014 / 0.84 s</td></tr>
+  </table>
+  </div>
+  <p class="muted" style="font-size:.88rem">How these were measured. WER comes from Whisper base. A take counts as a whisper when less than 40% of its loud frames are voiced (pyin). Separability is a nearest-centroid classifier on Whisper-base encoder features, after subtracting the mean of each (voice, line, seed) group, holding out whole groups. Consistency is how much the tag moves takes in the same direction (|mean change|² / mean |change|²). The dev split shows the same picture: whisper 0/24 → 24/24, separability 0.35 → 0.61.</p>
+
+  <h3>What didn't work</h3>
+  <ul class="plain">
+    <li>Pushing tag embeddings away from their seed words: no change beyond noise.</li>
+    <li>Applying the boost to audio-frame queries only, keeping text tokens out of it: the effect mostly disappears. The tag works mainly through the text tokens that read it, not through a direct audio → tag path.</li>
+    <li>Whisper at ×14 or more: it whispers more reliably, but words smear (×20 → WER 0.41).</li>
+  </ul>
+
+  <h3>Caveats</h3>
+  <ul class="plain">
+    <li>Some whispers still slur words (whisper WER 0.18).</li>
+    <li><code>&lt;surprised&gt;</code> went up about 4 semitones and can sound over the top.</li>
+    <li>Untagged takes are not bit-identical to the release. The detector leaks about 0.001, which acts like a seed change. Quality is the same.</li>
+    <li>All metrics are proxies. There was no emotion classifier in the loop, so in the end your ears decide.</li>
+  </ul>
+</section>
+
+<section id="explore">
+  <h2>Every test take</h2>
+  <p class="muted">3 voices × 4 lines × 2 seeds × 7 classes. "No tag" is the same line through the edited model, to check that plain speech did not change.</p>
+  <div class="controls">
+    <label>Tag<select id="s-emo"></select></label>
+    <label>Voice<select id="s-voice"></select></label>
+    <label>Line<select id="s-line"></select></label>
+    <label>Seed<select id="s-seed"></select></label>
+  </div>
+  <div class="card">
+    <p class="prompt" id="x-prompt"></p>
+    <div class="trio" id="x-players"></div>
+  </div>
+</section>
+
+<section>
+  <h2>Try it</h2>
+<pre>pip install -r requirements.txt   # from the Hugging Face repo
+
+from silencio2 import Silencio2TTS
+tts = Silencio2TTS.from_pretrained("BlueRoseLabs/Silencio-2", revision="weightedit")
+tts.save("out.wav", "&lt;whisper&gt; Keep your voice down.", voice="260")</pre>
+</section>
+
+<footer>
+  Silencio-2 by BlueRoseLabs. The weight analysis and the edit were done with Claude (Claude Code), following <a href="https://rikiyat.github.io/blog/weight-space-programming/">weight-space programming</a>. Voices are the bundled Silencio-2 voices; test lines were written for this evaluation.
+</footer>
+</div>
+
+<script>
+const LINES = [
+  "We have to talk about what happened last night.",
+  "The train left an hour ago and nobody called me.",
+  "You kept the letter all these years.",
+  "There is someone standing at the end of the hallway."
+];
+const EMOS = ["whisper","sad","angry","fear","surprised","happy"];
+const VOICES = ["1320","5639","260"];
+const SEEDS = ["11","12"];
+const PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>';
+const PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2h3v12H4zM9 2h3v12H9z"/></svg>';
+let current = null;
+
+function src(model, emo, v, l, s){ return `audio/${model}/emo_${emo}_v${v}_l${l}_s${s}.mp3`; }
+function promptHTML(emo, l){
+  return (emo === "none" ? "" : `<span class="tag">&lt;${emo}&gt;</span> `) + LINES[l];
+}
+function player(url, label, sub, edit){
+  const el = document.createElement("div");
+  el.className = "player" + (edit ? " edit" : "");
+  el.innerHTML = `<button aria-label="Play ${label}">${PLAY}</button><div class="lab">${label}<span>${sub}</span></div><div class="bar"><i></i></div>`;
+  const a = new Audio(); a.preload = "none"; a.src = url;
+  const btn = el.querySelector("button"), fill = el.querySelector("i");
+  btn.onclick = () => {
+    if (current && current !== a) current.pause();
+    if (a.paused) { a.play(); current = a; } else a.pause();
+  };
+  a.onplay = () => btn.innerHTML = PAUSE;
+  a.onpause = a.onended = () => btn.innerHTML = PLAY;
+  a.ontimeupdate = () => fill.style.width = (a.duration ? 100 * a.currentTime / a.duration : 0) + "%";
+  el.querySelector(".bar").onclick = e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (a.duration) a.currentTime = a.duration * (e.clientX - r.left) / r.width;
+  };
+  return el;
+}
+function pairCard(emo, v, l, s){
+  const c = document.createElement("div");
+  c.className = "card";
+  c.innerHTML = `<p class="prompt">${promptHTML(emo, l)}</p>`;
+  const p = document.createElement("div"); p.className = "pair";
+  p.append(player(src("release", emo, v, l, s), "Release", "Silencio-2", false),
+           player(src("edit", emo, v, l, s), "Weight edit", "same seed", true));
+  c.append(p);
+  const m = document.createElement("div"); m.className = "meta"; m.style.marginTop = "8px";
+  m.textContent = `voice ${v} · seed ${s}`;
+  c.append(m);
+  return c;
+}
+
+const fw = document.getElementById("feat-whisper");
+VOICES.forEach((v, i) => fw.append(pairCard("whisper", v, i, "11")));
+const fe = document.getElementById("feat-emo");
+["sad","angry","fear","surprised"].forEach((e, i) => {
+  fe.append(pairCard(e, "1320", i % 4, "11"));
+  fe.append(pairCard(e, "5639", (i + 1) % 4, "11"));
+});
+
+const sel = id => document.getElementById(id);
+const fill = (id, opts) => sel(id).innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+fill("s-emo", EMOS.map(e => [e, `<${e}>`]));
+fill("s-voice", VOICES.map(v => [v, v]));
+fill("s-line", LINES.map((t, i) => [i, t.length > 34 ? t.slice(0, 32) + "…" : t]));
+fill("s-seed", SEEDS.map(s => [s, s]));
+function renderX(){
+  const e = sel("s-emo").value, v = sel("s-voice").value, l = +sel("s-line").value, s = sel("s-seed").value;
+  if (current) current.pause();
+  sel("x-prompt").innerHTML = promptHTML(e, l) + ` <span class="meta">· voice ${v} · seed ${s}</span>`;
+  const box = sel("x-players"); box.innerHTML = "";
+  box.append(player(src("release", e, v, l, s), "Release", "with tag", false),
+             player(src("edit", e, v, l, s), "Weight edit", "with tag", true),
+             player(src("edit", "none", v, l, s), "No tag", "weight edit", false));
+}
+["s-emo","s-voice","s-line","s-seed"].forEach(id => sel(id).onchange = renderX);
+renderX();
+</script>
+</body>
+</html>
