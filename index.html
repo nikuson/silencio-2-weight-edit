@@ -109,10 +109,11 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font
 
 <section id="listen">
   <h2>Listen</h2>
-  <p class="muted">All clips come from the held-out test set: lines, seeds and two of the three voices were never used while building the edit. Same text, same voice, same seed, only the weights differ. The examples below follow a fixed rule (seed 11, first lines), they are not cherry-picked. Every take is in the <a href="#explore">explorer</a>.</p>
+  <p class="muted">All clips come from the held-out test set: lines, seeds and two of the three voices were never used while building the edit. Same text, same voice, same seed, only the weights differ. Clips are loudness-normalized the same way <code>generate()</code> does by default. Every take, failures included, is in the <a href="#explore">explorer</a>.</p>
 
   <h3><span class="tag">&lt;whisper&gt;</span> the biggest change</h3>
   <div id="feat-whisper"></div>
+  <p class="muted" style="font-size:.9rem">Not every whisper works. The worst of the 24 test takes, voice 260 / "You kept the letter all these years." / seed 11, comes out as barely audible mumbling. <a href="#explore" id="show-fail">Hear it in the explorer</a>.</p>
 
   <h3>Other emotions</h3>
   <div class="grid2" id="feat-emo"></div>
@@ -160,7 +161,8 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font
 
   <h3>Caveats</h3>
   <ul class="plain">
-    <li>Some whispers still slur words (whisper WER 0.18).</li>
+    <li>Some whispers still slur words (whisper WER 0.18), and 1 of 24 test whispers collapses into mumbling.</li>
+    <li>Whispers come out about 20 dB quieter than speech. <code>generate()</code> raises quiet takes to speech level by default, so keep <code>normalize=True</code>.</li>
     <li><code>&lt;surprised&gt;</code> went up about 4 semitones and can sound over the top.</li>
     <li>Untagged takes are not bit-identical to the release. The detector leaks about 0.001, which acts like a seed change. Quality is the same.</li>
     <li>All metrics are proxies. There was no emotion classifier in the loop, so in the end your ears decide.</li>
@@ -248,7 +250,7 @@ function pairCard(emo, v, l, s){
 }
 
 const fw = document.getElementById("feat-whisper");
-VOICES.forEach((v, i) => fw.append(pairCard("whisper", v, i, "11")));
+[["1320", 0], ["5639", 1], ["260", 3]].forEach(([v, l]) => fw.append(pairCard("whisper", v, l, "11")));
 const fe = document.getElementById("feat-emo");
 ["sad","angry","fear","surprised"].forEach((e, i) => {
   fe.append(pairCard(e, "1320", i % 4, "11"));
@@ -272,6 +274,10 @@ function renderX(){
 }
 ["s-emo","s-voice","s-line","s-seed"].forEach(id => sel(id).onchange = renderX);
 renderX();
+sel("show-fail").onclick = () => {
+  sel("s-emo").value = "whisper"; sel("s-voice").value = "260"; sel("s-line").value = "2"; sel("s-seed").value = "11";
+  renderX();
+};
 </script>
 </body>
 </html>
