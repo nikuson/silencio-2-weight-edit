@@ -259,7 +259,7 @@ const fe = document.getElementById("feat-emo");
 
 const sel = id => document.getElementById(id);
 const fill = (id, opts) => sel(id).innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
-fill("s-emo", EMOS.map(e => [e, `<${e}>`]));
+fill("s-emo", EMOS.map(e => [e, `&lt;${e}&gt;`]));
 fill("s-voice", VOICES.map(v => [v, v]));
 fill("s-line", LINES.map((t, i) => [i, t.length > 34 ? t.slice(0, 32) + "…" : t]));
 fill("s-seed", SEEDS.map(s => [s, s]));
