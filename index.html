@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Silencio-2 Weight Edit</title>
-<meta name="description" content="Fixing weak emotion tags in a tiny TTS model by editing attention weights directly, with no retraining. Before/after audio on a held-out test set.">
-<meta property="og:title" content="Silencio-2: fixing emotion tags by editing the weights">
-<meta property="og:description" content="Whisper tag 5/24 → 22/24, emotion separability 0.45 → 0.71, untagged speech unchanged. No gradient steps.">
+<meta name="description" content="An experiment: strengthening weak emotion tags in a tiny TTS model by editing attention weights directly, with no retraining. Before/after audio on a held-out test set, glitches included.">
+<meta property="og:title" content="Silencio-2: an experiment in editing a TTS model's weights">
+<meta property="og:description" content="Reading the weights, finding why the tags are weak, and a rank-1 edit per layer. No gradient steps. Interesting results, still glitchy.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -90,9 +90,9 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font
 <div class="wrap">
 
 <header>
-  <div class="kicker">Silencio-2 · weight-space edit</div>
-  <h1>Fixing emotion tags by editing the weights, not retraining</h1>
-  <p class="lede">Silencio-2 is a tiny English TTS (18M generation parameters) with inline emotion and sound tags. It was trained on too little tagged data, so most emotion tags were unreliable. Reading the weights showed why, and a rank-1 edit per layer fixed most of it, with zero gradient steps.</p>
+  <div class="kicker">Silencio-2 · a weight-space experiment</div>
+  <h1>Editing the weights instead of retraining: an experiment with emotion tags</h1>
+  <p class="lede">Silencio-2 is a tiny English TTS (18M generation parameters) with inline emotion and sound tags. It was trained on too little tagged data, so most emotion tags were unreliable. Reading the weights showed why, and I tried a rank-1 edit per layer, with zero gradient steps. On my proxy metrics the tags got noticeably stronger, but this is an experiment, not a stable upgrade: some takes glitch, for example with a sudden jump in pitch or tone mid-sentence.</p>
   <div class="links">
     <a href="#listen">▶ Listen</a>
     <a href="#explore">All 168 test takes</a>
@@ -159,13 +159,14 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font
     <li>Whisper at ×14 or more: it whispers more reliably, but words smear (×20 → WER 0.41).</li>
   </ul>
 
-  <h3>Caveats</h3>
+  <h3>Glitches and caveats</h3>
   <ul class="plain">
+    <li><strong>It is not stable.</strong> Some takes glitch: the pitch or tone of the voice suddenly jumps mid-sentence, or the delivery switches halfway through. The numbers above do not catch this well.</li>
     <li>Some whispers still slur words (whisper WER 0.18), and 1 of 24 test whispers collapses into mumbling.</li>
     <li>Whispers come out about 20 dB quieter than speech. <code>generate()</code> raises quiet takes to speech level by default, so keep <code>normalize=True</code>.</li>
     <li><code>&lt;surprised&gt;</code> went up about 4 semitones and can sound over the top.</li>
     <li>Untagged takes are not bit-identical to the release. The detector leaks about 0.001, which acts like a seed change. Quality is the same.</li>
-    <li>All metrics are proxies. There was no emotion classifier in the loop, so in the end your ears decide.</li>
+    <li>All metrics are proxies, measured on a small test set (168 takes). There was no emotion classifier in the loop, so in the end your ears decide.</li>
   </ul>
 </section>
 
@@ -185,7 +186,7 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);font
 </section>
 
 <section>
-  <h2>Try it</h2>
+  <h2>Try it (experimental)</h2>
 <pre>pip install -r requirements.txt   # from the Hugging Face repo
 
 from silencio2 import Silencio2TTS
